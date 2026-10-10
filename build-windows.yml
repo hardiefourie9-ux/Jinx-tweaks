@@ -1,0 +1,35 @@
+name: Build Jinx Tweaks for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore src/JinxTweaks/JinxTweaks.csproj
+      - name: Publish standalone Windows x64 executable
+        run: dotnet publish src/JinxTweaks/JinxTweaks.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o artifacts/JinxTweaks
+      - name: Create SHA256 checksum
+        shell: pwsh
+        run: Get-FileHash artifacts/JinxTweaks/JinxTweaks.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  JinxTweaks.exe" } | Out-File -Encoding ascii artifacts/JinxTweaks/SHA256SUMS.txt
+      - name: Upload test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: JinxTweaks-Windows-x64-test-build
+          path: artifacts/JinxTweaks/
+          if-no-files-found: error
+          retention-days: 14
